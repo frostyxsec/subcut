@@ -1,0 +1,164 @@
+#!/bin/bash
+
+# subcut - Script untuk memfilter URL, menghapus domain utama dan mempertahankan subdomain
+# Usage: ./subcut -i input_file -o output_file -d domain
+
+show_help() {
+    echo "Usage: $0 -i input_file -o output_file -d domain"
+    echo ""
+    echo "Options:"
+    echo "  -i    Input file yang berisi daftar URL"
+    echo "  -o    Output file untuk menyimpan hasil yang difilter"
+    echo "  -d    Domain yang ingin difilter (contoh: example.go.id)"
+    echo "  -h    Tampilkan bantuan ini"
+    echo ""
+    echo "Contoh:"
+    echo "  $0 -i urls.txt -o filtered.txt -d example.go.id"
+    echo ""
+    echo "URL yang akan DIHAPUS (domain utama):"
+    echo "  - example.go.id"
+    echo "  - https://example.go.id"
+    echo "  - http://www.example.go.id"
+    echo "  - www.example.go.id"
+    echo ""
+    echo "URL yang akan DIPERTAHANKAN (memiliki subdomain):"
+    echo "  - https://api.example.go.id"
+    echo "  - sub.example.go.id"
+    echo "  - https://www.admin.example.go.id"
+}
+
+# Inisialisasi variabel
+input_file=""
+output_file=""
+domain=""
+
+# Parse command line arguments
+while getopts "i:o:d:h" opt; do
+    case $opt in
+        i)
+            input_file="$OPTARG"
+            ;;
+        o)
+            output_file="$OPTARG"
+            ;;
+        d)
+            domain="$OPTARG"
+            ;;
+        h)
+            show_help
+            exit 0
+            ;;
+        \?)
+            echo "Error: Invalid option -$OPTARG" >&2
+            echo "Gunakan -h untuk bantuan"
+            exit 1
+            ;;
+        :)
+            echo "Error: Option -$OPTARG memerlukan argument" >&2
+            exit 1
+            ;;
+    esac
+done
+
+# Validasi input
+if [[ -z "$input_file" || -z "$output_file" || -z "$domain" ]]; then
+    echo "Error: Semua parameter (-i, -o, -d) wajib diisi"
+    echo "Gunakan -h untuk bantuan"
+    exit 1
+fi
+
+# Cek apakah input file ada
+if [[ ! -f "$input_file" ]]; then
+    echo "Error: File input '$input_file' tidak ditemukan"
+    exit 1
+fi
+
+# Cek apakah input file tidak kosong
+if [[ ! -s "$input_file" ]]; then
+    echo "Error: File input '$input_file' kosong"
+    exit 1
+fi
+
+# Fungsi untuk memeriksa apakah URL adalah domain utama (harus dihapus)
+is_main_domain() {
+    local url="$1"
+    local target_domain="$2"
+    
+    # Hapus protocol (http://, https://)
+    clean_url=$(echo "$url" | sed 's|^https\?://||')
+    
+    # Hapus trailing slash dan path
+    clean_url=$(echo "$clean_url" | sed 's|/.*$||')
+    
+    # Cek apakah URL adalah domain utama atau www.domain
+    if [[ "$clean_url" == "$target_domain" || "$clean_url" == "www.$target_domain" ]]; then
+        return 0  # True - ini adalah domain utama
+    else
+        return 1  # False - ini bukan domain utama
+    fi
+}
+
+# Buat temporary file untuk hasil
+temp_file=$(mktemp)
+
+echo "Memproses file: $input_file"
+echo "Target domain: $domain"
+echo "Output file: $output_file"
+echo ""
+
+# Proses setiap baris dalam input file
+line_count=0
+kept_count=0
+removed_count=0
+
+while IFS= read -r line; do
+    ((line_count++))
+    
+    # Skip baris kosong
+    if [[ -z "$line" ]]; then
+        continue
+    fi
+    
+    # Cek apakah ini domain utama yang harus dihapus
+    if is_main_domain "$line" "$domain"; then
+        ((removed_count++))
+        echo "✗ HAPUS: $line (domain utama)"
+    else
+        # Pertahankan URL ini
+        echo "$line" >> "$temp_file"
+        ((kept_count++))
+        echo "✓ SIMPAN: $line"
+    fi
+    
+done < "$input_file"
+
+# Copy hasil ke output file
+if [[ -s "$temp_file" ]]; then
+    cp "$temp_file" "$output_file"
+    
+    echo ""
+    echo "=== HASIL ==="
+    echo "Total baris diproses: $line_count"
+    echo "URL dihapus (domain utama): $removed_count"
+    echo "URL dipertahankan (subdomain): $kept_count"
+    echo "Hasil disimpan di: $output_file"
+    
+    echo ""
+    echo "Preview hasil (10 baris pertama):"
+    head -10 "$output_file" | sed 's/^/  /'
+    
+    if [[ $kept_count -gt 10 ]]; then
+        echo "  ... dan $((kept_count - 10)) URL lainnya"
+    fi
+else
+    echo ""
+    echo "⚠️  Semua URL adalah domain utama, tidak ada yang dipertahankan"
+    echo "File output kosong dibuat: $output_file"
+    touch "$output_file"
+fi
+
+# Bersihkan temporary file
+rm -f "$temp_file"
+
+echo ""
+echo "Selesai!"
