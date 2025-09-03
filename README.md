@@ -1,4 +1,4 @@
-# subcut
+# SubCut
 
 **subcut** adalah script bash untuk memfilter URL, menghapus domain utama, dan mempertahankan hanya subdomain.  
 Cocok digunakan saat melakukan pengolahan daftar URL hasil crawling atau scraping.
@@ -89,5 +89,3 @@ https://www.admin.example.go.id
 
 Proyek ini dirilis di bawah lisensi **MIT**.
 Silakan gunakan, modifikasi, dan distribusikan sesuai kebutuhan.
-
-```
