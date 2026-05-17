@@ -18,7 +18,7 @@ Cocok digunakan saat melakukan pengolahan daftar URL hasil crawling atau scrapin
 Clone repository atau unduh script `subcut`:
 
 ```bash
-git clone https://github.com/username/repo.git
+git clone https://github.com/frostyxsec/subcut/
 cd repo
 chmod +x subcut
 ````
